@@ -1,74 +1,99 @@
-﻿# FactAlign-RAG
+# FactAlign-RAG
 
-以「自包含命题（事实句）」为最小检索单元，并把下一跳查询写成**同形态的开放槽命题**
-（`"Cleopatra IV's father is ___"`）驱动迭代检索 —— 让第 t+1 跳检索退化为对单条事实的
-近复述匹配。方法定稿与实验矩阵见 `METHOD.md` / `EXPERIMENT_PLAN.md`。
+**English** | [中文](README_ch.md)
 
-（旧名 HyperfactRAG 已退役：当年的 `full` / `no_head` 自带语料图路线与
-`methods/hyperfactrag.py` 一并删除，主线改为本方法 + `test_layer.py` 实验台。）
+A multi-hop retrieval-augmented generation (RAG) benchmark harness whose smallest
+retrieval unit is a **self-contained proposition** — an atomic fact stated as a
+complete sentence. Each follow-up query is issued in the same canonical form, an
+**open-slot proposition** (`"Cleopatra IV's father is ___"`), which drives the
+iterative retrieval loop and reduces hop *t+1* to a near-paraphrase match against a
+single fact.
 
-## 目录结构
+> The former name **HyperfactRAG** is retired. The earlier self-built corpus-graph
+> route (`full` / `no_head`, together with `methods/hyperfactrag.py`) has been
+> removed; the main line is now this method plus the `test_layer.py` experiment bench.
+
+## Directory layout
 
 ```
-├── common/          # 数据读取 / 指标 / LLM 封装（含分阶段日志）
-├── methods/         # 方法实现与各 baseline 适配器
-│   ├── factalign.py         # 本方法：命题索引 + 开放槽命题查询（run.py --method factalign）
-│   ├── standard_rag.py      # standardrag（纯稠密分块检索）
+├── common/          # data loading / metrics / LLM wrappers (with phased logging)
+├── methods/         # method implementations and per-baseline adapters
+│   ├── factalign.py         # this method: proposition index + open-slot queries
+│   ├── standard_rag.py      # standardrag (pure dense chunk retrieval)
 │   ├── ircot_adapter.py     # IRCoT
 │   ├── lightrag_adapter.py / hypergraphrag_adapter.py / hipporag_adapter.py
 │   ├── s2grag_adapter.py
-│   └── __init__.py          # 注册表（懒加载）
-├── baselines/       # 原版 baseline 仓库（git clone，不提交）
-├── prompts/         # 生成 prompt
-├── data/            # samples（题集）/ corpus（语料图，缓存）
+│   └── __init__.py          # lazy method registry
+├── baselines/       # upstream baseline repositories (git clone, not committed)
+├── prompts/         # generation prompts
+├── data/            # samples (question sets) / corpus (corpus graphs, cached)
 ├── results/         # results/{method}/{dataset}/v{n}r{m}.jsonl + summary.jsonl
-├── logs/            # logs/{method}/…（建图段 / 检索段分开）
-├── test_layer.py    # 本方法实验台（消融全在这里跑）
-├── run.py           # 主入口：方法 × 数据集 评测（断点续）
-├── corpus.py / extract.py / search.py    # 语料建图 / 命题抽取 / 检索
-└── tools/           # 对比与审计脚本
+├── logs/            # logs/{method}/… (build phase and query phase split)
+├── test_layer.py    # experiment bench for this method (all ablations live here)
+├── run.py           # main entry: evaluate method × dataset (resumable)
+├── corpus.py / extract.py / search.py    # corpus build / proposition extraction / retrieval
+└── tools/           # comparison and audit scripts
 ```
 
-## 数据集
+## Datasets
 
-| 数据集 | 来源 |
+| Dataset | Source |
 |---|---|
-| HotpotQA | HF 自带上下文 |
-| 2WikiMultiHopQA | HF 自带上下文 |
-| MuSiQue | HF 自带上下文 |
+| HotpotQA | contexts shipped with the HF dataset |
+| 2WikiMultiHopQA | contexts shipped with the HF dataset |
+| MuSiQue | contexts shipped with the HF dataset |
 
-**最终指标：EM / F1（答案正确性）。** R@k 仅作开发诊断，最终分析不报。
+**Final metric: EM / F1 (answer correctness).** R@k is used only for development
+diagnostics and is not reported in the final analysis.
 
-## 方法
+## Methods
 
-- `factalign`（**本方法**）：命题（自包含事实句）索引 + 开放槽命题查询；语料级 build 一次 + 逐题 query
-- `standardrag`：分块（滑动窗口）+ **纯稠密**检索 top-5（无 BM25、无 RRF）（地基基线）
-- `ircot`：检索-推理交替（官方 prompt）
-- `lightrag` / `hypergraphrag` / `hipporag` / `s2grag`：外部 baseline 适配器
+- `factalign` (**this method**): proposition (self-contained fact sentence) index +
+  open-slot proposition queries; one corpus-level build, then a per-question query
+- `standardrag`: chunking (sliding window) + **pure dense** retrieval of top-5
+  (no BM25, no RRF) — the floor baseline
+- `ircot`: alternating retrieval and reasoning (official prompts)
+- `lightrag` / `hypergraphrag` / `hipporag` / `s2grag`: external baseline adapters
 
-## 用法
+## Usage
 
 ```bash
-python sample_datasets.py --sample 500                        # 下载数据
-python run.py --method factalign --dataset 2wiki --sample 500 --workers 16   # 本方法
+# build the corpus and the sampled question sets
+python tools/build_all.py --datasets hotpotqa --sample 500 \
+    --steps raw,samples,corpus
+
+# this method
+python run.py --method factalign --dataset 2wiki --sample 500 --workers 16
+
+# floor baseline
 python run.py --method standardrag --dataset hotpotqa --sample 500 --workers 8
+
+# experiment bench / ablations
 python test_layer.py --dataset 2wiki --sample 500 --limit 500 --workers 16 \
-  --decompose --decompose_stmt --rerank hybrid --tag q_stmt_he   # 实验台 / 消融
+  --decompose --decompose_stmt --rerank hybrid --tag q_stmt_he
 ```
 
-- `--graph-version`（v）= 第几次建图，`--retrieval`（r）= 同一张图上的第几次检索；
-  换参数开新号，结果互不覆盖，同号重跑自动断点续。
-- 日志按阶段分两份：`logs/{method}/{ds}_{n}_v{n}r{m}_build_*.log`（建图段）与
-  `..._query_*.log`（检索段到最终汇总），两段拼起来就是完整输出。
-- 消融（查询形态 / 索引单元 / 拆解步数 / 精排 / 图传播 / 证据过滤）统一走 `test_layer.py`。
+- `--graph-version` (`v`) is which corpus build, `--retrieval` (`r`) is which query
+  pass over that same build. Bumping a number starts a fresh set of results so runs
+  never overwrite each other; re-running the same number resumes automatically.
+- Logs are split by phase: `logs/{method}/{ds}_{n}_v{n}r{m}_build_*.log` (corpus
+  build) and `..._query_*.log` (retrieval through the final summary). Concatenating
+  the two gives the complete output.
+- Every ablation (query form / retrieval unit / decomposition steps / reranking /
+  graph propagation / evidence filtering) is run through `test_layer.py`.
 
-## 关键约定
+## Conventions
 
-- 生成口径统一：所有方法最后都调 `methods.base.generate_answer`；prompt 按**数据集**分派
-  （hotpotqa / musique / 2wiki → `prompts/rag_prompt.txt`；triviaqa → `prompts/rag_prompt_triviaqa.txt`），
-  无证据路径（`zeroshot`）用 `prompts/rag_prompt_nocontext.txt`，**不按数据集分派**
-  （无证据时没有"抄哪个 span"的问题，单跳/多跳口径对它不存在）；
-- EM / F1 全项目只此一份（`common/metrics.py`）；
-- baseline 原版仓库放 `baselines/`，适配器在 `methods/*_adapter.py`；
-- 语料切块：**默认不切块**（1 段上下文 = 1 个整段 passage），只有超过 2000 token 的块才切
-  （`config.EXTRACT_CHUNK_TOKENS=0` → `normalize_chunk_tokens()` 映射为 2000，重叠 0）。
+- **Unified generation path**: every method finally calls
+  `methods.base.generate_answer`. The prompt is dispatched per **dataset**
+  (`prompts/rag_prompt.txt` for hotpotqa / musique / 2wiki;
+  `prompts/rag_prompt_triviaqa.txt` for triviaqa). The no-evidence path
+  (`zeroshot`) uses `prompts/rag_prompt_nocontext.txt` and is **not** dispatched by
+  dataset — with no evidence there is no "which span to copy" problem, so the
+  single-hop / multi-hop distinction does not apply to it.
+- **One implementation of EM / F1** for the whole project: `common/metrics.py`.
+- Upstream baseline repositories live in `baselines/`; the adapters are in
+  `methods/*_adapter.py`.
+- **Chunking: none by default** (one context = one whole passage). Only blocks above
+  2000 tokens are split (`config.EXTRACT_CHUNK_TOKENS=0` is mapped to 2000 by
+  `normalize_chunk_tokens()`, with zero overlap).

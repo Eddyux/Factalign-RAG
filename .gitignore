@@ -41,8 +41,10 @@ fenxi/
 /_t2.py
 
 # ─── Documentation ────────────────────────────────────────────────────
-# Every .md is ignored except README.md at any level (e.g. configs/README.md).
+# Every .md is ignored except the two READMEs: README.md (English) and
+# README_ch.md (Chinese), which link to each other via a language switcher.
 # NOTE: for a file that is ALREADY tracked, this rule has no effect until it
 # is removed from the index with `git rm --cached <file>`.
 *.md
 !README.md
+!README_ch.md
