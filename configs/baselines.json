@@ -1,0 +1,125 @@
+{
+  "_readme": "12 个 baseline 的稳定旋钮（默认值 = 各官方仓库/论文的取值）。方法私有键统一长成 <METHOD>_XXX，见 configs/README.md。",
+  "_note_priority": "CLI/环境变量 > 本文件 > 代码默认值；本文件不覆盖已存在的同名环境变量",
+
+  "_note_method_prefixes": "★ 必须有：方法名 ≠ 环境变量前缀。hypergraphrag 的旋钮叫 HGR_*，不声明的话 methods.hypergraphrag.* 会被扁平化成 HYPERGRAPHRAG_*，**没有任何代码读它** → 写了一堆键却全是死键。",
+  "method_prefixes": {
+    "hypergraphrag": "HGR"
+  },
+
+  "_note_chunking": "★★ 语料单元口径：**extract_chunk_tokens=0 = 不切块**（一个 context = 一个块）。这是全局键，对所有方法生效。实测 2wiki/hotpotqa/musique/popqa 的原始 passage 有 98% 本来短于 400 token → 近似 no-op；⚠️ triviaqa 的 passage 是整篇维基文章（中位 3483 词，569/840 行超 2000 token）→ 已由 triviaqa_chunk_* 单独切成 1200/100 处理。",
+  "extract_chunk_tokens": 0,
+  "extract_chunk_overlap": 0,
+  "_note_triviaqa_chunking": "★ **triviaqa 专属切块 1200/100**（`config.dataset_chunking()` 解析；其余 4 个数据集不受影响，仍不切块）。滑窗步长 1100，末块切到文末即止：1250 → [0..1199]+[1100..1249]；2400 → [0..1199]+[1100..2299]+[2200..2399]。改它 = triviaqa 语料单元变更 → 必须开新 --graph-version 重建。",
+  "triviaqa_chunk_tokens": 1200,
+  "triviaqa_chunk_overlap": 100,
+
+  "_note_selfcontained": "★★ 本文件是 `run_one.sh` **唯一**传入的配置（`run.py --config` 只收一份，见 `_prescan_config()`），所以它必须**自足**：运行时真正读到的每个旋钮都写在这里，不靠 `config.py` 的代码默认兜底。此前只有 5 个顶层键，而服务端连接 / 嵌入模型 / BM25 那几个旋钮只写在 `configs/default.json` 与 `configs/embedding-qwen3-06b.json` 里 —— 那两份**没有任何脚本引用**（只有 configs/README.md 提到）→ 键等于没生效。下面加进来的值**全部等于当时的代码默认**，所以运行值零变化；唯一实质修正是 `embed_server_batch_tokens`。",
+  "_note_embed_server_batch": "★ 服务端是按 `--max-num-batched-tokens 8192` 起的。此前这里没写 → `config.py:103` 默认 0 → 启动自检「EMBED_REQUEST_TOKENS(4096) ≤ 服务端批次上限」**无法核对**，日志里会出现「⚠ 无法核对 …请用 EMBED_SERVER_BATCH_TOKENS=<值> 声明以启用自动校验」。写进来这条自检才真正生效。",
+  "embed_server_batch_tokens": 8192,
+
+  "_note_infra": "服务端连接与嵌入模型（此前散在 configs/embedding-qwen3-*.json，未被任何脚本引用；值 = config.py 的代码默认）",
+  "backend": "vllm",
+  "chat_model": "Llama-3.1-8B-Instruct",
+  "vllm_base_url": "http://127.0.0.1:8000/v1",
+  "vllm_embed_base_url": "http://127.0.0.1:8001/v1",
+  "_note_hf": "★ HuggingFace 下载镜像 / 离线开关。`hf_endpoint` → `HF_ENDPOINT`（国内直连 huggingface.co 不通，默认走 hf-mirror）。无外网的机器在 **shell 里**再 export `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1`：这两个是「要不要联网」的总闸，不适合写进配置（写进去会让所有机器都无法下载）。⚠️ tokenizer 拿不到时切块会**退化为字符级**（1200 token 实际按 4800 字符切），日志会打 [tokenizer] ⚠️ 告警，manifest 里也会记 tokenizer_failure。修法：把 embed_model 指向含 tokenizer_config.json 的本地目录（推荐，且离线可复现）。",
+  "hf_endpoint": "https://hf-mirror.com",
+
+  "embed_model": "/root/rivermind-data/models/Qwen3-Embedding-0.6B",
+  "embed_model_served": "Qwen3-Embedding-0.6B",
+  "embed_dim": 1024,
+  "embed_max_tokens": 4096,
+  "embed_request_tokens": 4096,
+  "embed_query_format": "qwen3",
+  "embed_query_task": "Given a web search query, retrieve relevant passages that answer the query",
+  "embed_tokenizer": "embed",
+  "chunk_tokenizer": "embed",
+
+  "_note_flat_knobs": "方法私有旋钮的另一种写法：顶层平铺 `<METHOD>_XXX`，与 `methods.<m>.<xxx>` 等价。这里放的是原先**只在 `configs/default.json` 里**的那些 —— 写进来才真正能被「改配置文件」改到（否则值虽然对，但来源是 adapter 里的代码默认）。⚠️ `selfask_max_hops` / `selfask_bm25_k` 已由下面的 `methods.selfask` 表达，**不要**在这里重复（同一个环境变量两个来源）。",
+  "extract_workers": 64,
+  "extract_tries": 3,
+  "standardrag_top_k": 5,
+  "_note_bm25_global": "★ 共享 BM25 参数 = **与 `standard_rag.BM25_*` 同名的全局兜底**，不是 standardrag 专有：standardrag 本身已是纯稠密（关 BM25/RRF），真正吃这个兜底的是 `corpus_index`（s2grag 的 BM25 底座）/ `selfask` / `proprag` 里**没显式传 k1/b** 的调用；各方法自己的值写在上面的 `<method>_bm25_k1/b`（各自声明，不落回这里）。此前这三个键**只有代码默认**，配置里没有 → 论文要核验 k1=1.5/b=0.75 时无从查证，改它也只能改代码。",
+  "bm25_k1": 1.5,
+  "bm25_b": 0.75,
+  "bm25_analyzer": 1,
+  "ircot_bm25_k1": 1.2,
+  "ircot_bm25_b": 0.75,
+  "selfask_bm25_k1": 1.5,
+  "selfask_bm25_b": 0.75,
+  "factalign_evidence_props": 20,
+  "factalign_evidence_windows": 5,
+  "llm_retry_attempts": 2,
+  "llm_retry_budget_sec": 600,
+  "llm_gate_metrics": 1,
+
+  "methods": {
+    "ircot": {
+      "distractors": 2,
+      "remove_wh": 1,
+      "max_sentences": 10,
+      "retrieval_count": 6,
+      "global_max_paras": 15,
+      "_note_max_new_tokens": "官方每轮生成上限 max_tokens=300（gpt3generator.py:91）。官方原版不传 → vLLM 会用 max_model_len-prompt_len（能生成多少生成多少），而每轮只需一句 thought → 不设上限纯属白烧 decode。写进配置是为了让「官方对齐」可核验。",
+      "max_new_tokens": 300
+    },
+    "selfask": {
+      "_note_aligned": "★ 已对齐值：K=1（官方 examples/selfask.py 每跳只取 1 篇）、max_hops=10。此前这里写的是 4/5（对齐之前的旧值）——因为 prescan 从不注入 methods.*，这份配置一直没生效，所以旧值没被发现。",
+      "max_hops": 10,
+      "bm25_k": 1,
+      "ground_intermediate": 1,
+      "final_grounded": 1
+    },
+    "proprag": {
+      "top_docs": 5,
+      "_note_top_docs": "★ 已对齐值 5 = 官方 qa_top_k=5（PARAMS_ALIGNED §3）。此前写的 20 是对齐之前的旧值。",
+      "_note_retry": "★ 统一重试口径：解析失败最多再抽 2 次、封顶 3 次（retry=2 → 共 3 次尝试），失败即丢弃该块。与 hipporag.openie_tries=3 / hypergraphrag.build_retries=3 同口径。⚠️ 这是**主动的成本控制偏离**：官方 PropRAG 的条目层重试（RetryExecutor，misc_utils.py:130-157）是 `while self.futures:` 无上限重提交、**永不丢弃**失败块；且我们原先没有这个旋钮（自造）。",
+      "retry": 2,
+      "passage_weight": 0.05,
+      "syn_threshold": 0.8,
+      "beam_width": 4,
+      "max_path_length": 3,
+      "second_stage_k": 40,
+      "sim_threshold": 0.75,
+      "focus_top_k": 50,
+      "extract_workers": 64,
+      "_note_max_new_tokens": "★ 生成上限 = **8192，逐字对齐官方**（max_tokens = 单次响应最多生成多少 token，与输入上限无关；是上限不是配额）。官方链条（已从调用链往上核）：config_utils.py:30-33 max_new_tokens 字段默认 8192 → main.py:146 `# max_new_tokens=None` 被注释掉用默认 → llm/openai_gpt.py:255 kwargs.get(max_new_tokens, 8192) → :278-280 模型名不含 gpt（Llama）故改名 max_tokens 发给 OpenAI 兼容端点 → enhanced_openie.py:86/118/225 三处 infer() 都不传该参数，全程 8192。⚠️ openie_vllm_offline.py:38/:45 的 512/2048 **不是这条路径的值**，那是 HippoRAG 2 血统的姊妹实现、全仓只有类定义+一行 import（PropRAG.py:24）、从未被实例化；曾误引它改成 512/2048，已回退。上限给紧会截断输出（官方在 enhanced_openie.py:95-98 告警、:230-231 调 fix_broken_generated_json 补救），截断的 JSON 解析失败会触发 PROPRAG_RETRY 重试成倍放大成本；实测本项目 ct 中位数 144、贴顶 1.2%，故该值平时基本不生效。旧旋钮 PROPRAG_MAX_NEW_TOKENS 仍被兼容（设了就同时覆盖两跳）。",
+      "ner_max_new_tokens": 8192,
+      "prop_max_new_tokens": 8192
+    },
+    "s2grag": {
+      "max_turns": 4,
+      "top_docs": 6,
+      "_note_top_docs": "★ 已对齐值 6/轮 = 官方 --top_docs default=6（generation/generation.py:826）。此前写的 10 是对齐之前的旧值。",
+      "select_top_k": 6,
+      "max_facts": 3,
+      "judge_json_mode": 1,
+      "_note_judge_max_tokens": "官方 judge 的输出上限（我们自定的 JSON 判据生成长度）。写进配置是为了让这条口径可核验，值 = 代码默认。",
+      "judge_max_tokens": 256
+    },
+    "hipporag": {
+      "_note_retry": "★ 统一重试口径的基准：单块最多 3 次抽取尝试（首次 + 2 次重试），失败即丢弃（摘掉 error，该块只留 passage 节点）。hgr/proprag/lightrag/factalign 都对齐这个值。",
+      "openie_tries": 3
+    },
+    "_removed_proh": "PRoH 已按要求移除（adapter / 审计脚本 / 专属冒烟一并删除），不再参与跑批。",
+    "lightrag": {
+      "_note": "同上：lightrag.embed_dim / embed_max_tokens / tokenizer（tokenizer=tiktoken 时回到官方 tiktoken 尺子）",
+      "embed_dim": null,
+      "embed_max_tokens": null,
+      "tokenizer": null
+    },
+    "hypergraphrag": {
+      "_note": "同上：hypergraphrag.embed_dim / embed_max_tokens / tokenizer；官方原版口径还需要 truncate_tokens=4000（官方按 tiktoken 调的）",
+      "embed_dim": null,
+      "embed_max_tokens": null,
+      "tokenizer": null,
+      "truncate_tokens": null,
+      "_note_gleaning": "★ gleaning（**续抽**，不是重抽）固定 0 = **每块只做 1 轮抽取**。官方默认 2 → 每块最多 **4** 次 LLM 调用（首抽 + 2 轮 gleaning + 最多 1 次 if_loop，官方 operate.py:326-339）；续抽时**正文不再重发**、靠 history 让模型补漏、结果**并集累加**。本项目不采用，以控建图成本（代价：召回更低）。与下面的重试口径是两回事，可同时生效。",
+      "max_gleaning": 0,
+      "_note_retry": "★ 统一重试口径：解析失败最多再抽 2 次、封顶 3 次（build_retries=3），失败即丢弃该块（写 failed_docs.json 留痕）。与 hipporag.openie_tries=3 / proprag.retry=2 同口径。",
+      "build_retries": 3
+    },
+    "standardrag": {}
+  }
+}

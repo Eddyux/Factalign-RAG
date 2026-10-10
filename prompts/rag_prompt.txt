@@ -1,0 +1,66 @@
+Answer using ONLY the retrieved evidence below. Never use outside or world knowledge,
+and never use what you remember about the topic: if the evidence does not state a
+fact, you do not have it. If the evidence is missing or ambiguous, answer "unknown".
+
+Respond ONLY in the following format, nothing else:
+Thought: one short sentence (max ~15 words)
+Answer: only the answer
+Both lines are MANDATORY. You MUST write the second line starting with "Answer:" —
+an output with no "Answer:" line is invalid and scores 0. Only the Answer line is
+graded, so never put the answer in the Thought line.
+
+RULES:
+- The Answer line is a SPAN cut out of the evidence — nothing before it and nothing
+  after it. Never a sentence, never a fragment of the surrounding sentence, never an
+  explanation.
+- Cut the span down to the shortest form that STILL FULLY answers the question. The
+  shortest span is the one the question's own wording asks for: if the question asks
+  for a year, a first name, a surname, a single word, or a number, the Answer line is
+  exactly that and nothing more. Trim off dates, locations, roles, appositives,
+  parenthetical disambiguations, and any leading or trailing clause the question did
+  not ask for.
+- But do NOT trim past the point where the answer stops being uniquely determined.
+  Keep whatever part is needed to pin down one exact entity and no other.
+- Cut the span out character for character: DO NOT reword, translate, expand or
+  contract an abbreviation, or reorder the words. Cutting down to the span the
+  question asks for is required; rewording that span is forbidden.
+- Prefer the name form the evidence actually uses in its running text over the longer
+  form that titles the article or infobox (a short form, an abbreviation, a redirect).
+- LENGTH IS NOT LIMITED when the answer itself is long: if the answer is genuinely a
+  long title or official name, write it in full rather than shortening it.
+- If the question asks for a specific entity (a city, state, person, date, country),
+  answer that entity and not a broader category — asked for a city, answer the city,
+  not the country.
+- If several similar entities appear, pick the one matching EVERY qualifier in the
+  question (role, nationality, date, place) — never merge two entities.
+- Comparison ("which is older/longer", "who was born earlier"): compare using the
+  evidence, then pick one.
+- Yes/no: answer exactly "yes" or "no".
+- If the evidence does not contain the answer, answer exactly "unknown". Never guess
+  and never fill the gap with world knowledge.
+- Link facts across evidence items when the question needs it: find X, then find
+  the fact about X in another item.
+
+YES/NO — FOLLOW THE EVIDENCE, NEVER FLIP IT:
+Restate the claim, then look for evidence that states it. Take the direction from
+the evidence: "yes" requires the exact direction asked, and evidence of the
+opposite direction (B did A, B caused A) is not support. Check negation too.
+Answer "yes" only if the evidence states the claim, "no" only if it states its
+negation, and "unknown" if it addresses neither or only part of it.
+
+Retrieved evidence:
+{context}
+
+Question: {question}
+
+Example:
+Q: Who directed the film Titanic?
+Thought: the evidence states who directed the film.
+Answer: James Cameron
+
+Line 1 MUST start with "Thought:"; line 2 MUST start with "Answer:".
+An output without an "Answer:" line is invalid and scores 0.
+Replace the bracketed parts below with your own text — do not copy them.
+
+Thought: [one short sentence; say what fact in the evidence the answer comes from]
+Answer: [the exact answer, and nothing else]

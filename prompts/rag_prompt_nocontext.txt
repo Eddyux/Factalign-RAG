@@ -1,0 +1,33 @@
+Answer the question from your own knowledge. You are given NO evidence: this
+path deliberately retrieves nothing, so the only thing you may use is what you
+already know.
+
+OUTPUT FORMAT — EXACTLY TWO LINES, NOTHING ELSE:
+Thought: <half a sentence, max ~15 words>
+Answer: <the exact name, date, number, or entity, and nothing after it>
+Only what follows "Answer:" is read as your final answer, so never add a third line,
+a preamble, or a summary.
+
+RULES:
+- Give the answer itself — not a sentence about it, not an explanation, and not a
+  fragment of a sentence.
+- Keep the answer as short as the question allows: if the question asks for a year, a
+  first name, a surname, a single word, or a number, the Answer line is exactly that
+  and nothing more. But do NOT trim past the point where the answer stops being
+  uniquely determined: keep a qualifier when it is part of the answer itself
+  (e.g. "Gatwick Airport", not "Gatwick").
+- LENGTH IS NOT LIMITED when the answer itself is long: if the answer is genuinely a
+  long title or official name, write it in full instead of shortening it to fit.
+- For yes/no questions answer exactly "yes" or "no".
+- If you do not know the answer, answer exactly "unknown". Do NOT guess and do
+  NOT invent a plausible-sounding name, date, or number just to fill the line:
+  a wrong guess is worse than "unknown". Guessing is never required.
+
+Question: {question}
+
+Line 1 MUST start with "Thought:"; line 2 MUST start with "Answer:".
+An output without an "Answer:" line is invalid and scores 0.
+Replace the bracketed parts below with your own text — do not copy them.
+
+Thought: [one short sentence]
+Answer: [the exact answer, and nothing else]

@@ -1,0 +1,65 @@
+{
+  "_readme": "★ 官方口径对齐配方 ★ —— 让 baseline 的 token 尺子 / 截断 / 分块 / 生成上限回到**官方仓库原值**，用于跟论文数字对账（对齐实验）。用法：python run.py --config configs/default.json --method hypergraphrag --dataset hotpotqa --sample 500 --graph-version 3（把本文件的键并进你实际用的那份 --config，或直接把它当 --config）。",
+  "_why": "本项目默认把官方内部的 tiktoken 尺子换成了 embedding 的 tokenizer（离线可用 + 与预切块同尺子），并按那个尺子调小了截断/分块值。这**偏离了官方口径**，所以默认配置下的数字不该直接跟论文比。本文件把这些值改回官方原值。",
+  "_warning": "⚠️ 这是**口径变更**，不是调参：切块尺子一换，块边界→实体→图→向量全变，结果与默认配置**不可比**，且必须开新 --graph-version 重建。论文里必须单独标注「official-tokenizer alignment」，不能混进默认列。",
+  "_usage_note": "本文件只写「可能偏离官方」的键；没写的（检索 top_k、beam、prompt 文件等）由 configs/default.json / 代码默认值给出，本来就是官方值。跑单个方法时，只留它那一组；换个方法跑就换一组（配置是按方法注入的，别的方法的键不会干扰）。",
+  "_method_prefixes_why": "方法名 ≠ 环境变量前缀：hypergraphrag 的旋钮叫 HGR_*。不声明的话 methods.<m>.* 会因前缀对不上被**跳过并警告**（写了一堆键却一个都没生效）。",
+  "method_prefixes": {
+    "hypergraphrag": "HGR"
+  },
+  "methods": {
+    "hypergraphrag": {
+      "embed_dim": null,
+      "embed_max_tokens": null,
+      "summary_max_tokens": 500,
+      "max_gleaning": 0,
+      "query_max_tokens": 4000,
+      "_note": "官方 HyperGraphRAG 算法保真键（**不含**切块与尺子——那些按本项目口径，见 _chunking_policy）。summary_max_tokens 在官方 operate.py:64-84 身兼三职：描述不足该值就不摘要、摘要输出上限、输入截断另由官方 llm_model_max_token_size 管。**max_gleaning 这里也设 0（不跟官方的 2）**：官方 2 → 每块最多 4 次 LLM 调用（首抽 + 2 轮续抽 + 最多 1 次 if_loop，官方 operate.py:326-339），本项目一律「每块 1 轮」以控建图成本；要跑严格官方口径的对账实验时手工改回 2。"
+    },
+    "lightrag": {
+      "max_gleaning": 1,
+      "embed_dim": null,
+      "embed_max_tokens": null,
+      "_note": "官方 LightRAG gleaning 默认 1（每块最多 2 次 LLM 调用），本项目默认 0。切块与尺子按本项目口径（见 _chunking_policy）。"
+    },
+    "s2grag": {
+      "_note": "⚠️ 本块**只钉了 max_facts**，而它 = 代码默认值 → 对结果无影响（no-op）。s2grag 的 4 处真实偏离（索引不含 title / top_docs 10 vs 官方 6 / BM25 k1b 1.5-0.75 vs 官方 0.9-0.4 + RRF vs 纯 BM25 / 检索单元粒度）**当前没有旋钮可对齐** —— 详见 AUDIT_PARAMS.md §3.1。triviaqa 官方 max_facts=1 且另有专属 selector/force-answer prompt（两个常量已随 _load_official_prompts 载入 self._P，只是未被使用）。",
+      "max_facts": 3
+    },
+    "ircot": {
+      "_note": "⚠️ 本块**只钉了 max_para_words**，而它是词数（不是 token）且 = 代码默认值 → no-op。ircot 的真实偏离（prompt 未复刻官方的 20 条 qid 过滤 + 8000 gpt2-token 二级压缩 / 每轮「补满 6 篇」vs 官方「top-6 内去重」/ 缺 600 词长段过滤 / title 不进 BM25 / 缺 IRCOT_OFFICIAL_ANSWER 开关）**当前没有旋钮可对齐** —— 详见 AUDIT_PARAMS.md §3.3。",
+      "max_para_words": 350
+    },
+    "_non_token_methods": "hipporag / proprag：**已**与官方对齐（HippoRAG BaseConfig / PropRAG 硬编码值），下面的键只为把口径钉死。⚠️ selfask / standardrag **不适用**这句 —— selfask 官方用 Google 搜索、standardrag 是本项目自有基线，都不存在「官方值」。",
+    "hipporag": {
+      "_note": "官方 HippoRAG BaseConfig 原值。retrieval_top_k/qa_top_k 的含义：前者是 PPR 返回的候选池深度（HippoRAG.py:729 num_to_retrieve），后者是真正喂进答题模型的篇数（:1130 docs[:qa_top_k]）。这些默认已与官方一致，列出仅为钉死口径。",
+      "linking_top_k": 5,
+      "retrieval_top_k": 200,
+      "qa_top_k": 5,
+      "max_qa_steps": 1,
+      "damping": 0.5,
+      "syn_threshold": 0.8,
+      "ner_max_tokens": 512,
+      "triple_max_tokens": 2048,
+      "_embed_max_seq_len_note": "embedding_max_seq_len 代码默认**已改为官方 2048**（本项目**不切块**后单块可以很长，但真实逐条截断仍由全局 fit_embed() 按 EMBED_MAX_TOKENS=4096 执行，所以这个字段只是个声明值；它不会虚假声明模型没有的能力）。留 null = 不注入、用代码默认。⚠️ 该值进索引签名（utils/state_utils.py:45）→ 改它必须重建。",
+      "embed_max_seq_len": null
+    },
+    "proprag": {
+      "_note": "官方 PropRAG 的硬编码值（PropRAG.py:1517/1519/1623/1631/1633 等），现已全部暴露成旋钮。适配器默认已 = 官方，列出仅为钉死口径。其余官方键（passage_weight / syn_threshold / syn_topk / beam_width / max_path_length / second_stage_k）适配器默认本来就是官方值，按本文件「只写偏离项」的约定不重复列。",
+      "ppr_damping_1": 0.75,
+      "ppr_damping_2": 0.45,
+      "stage1_path_top": 20,
+      "stage1_entity_top": 40,
+      "beam_seed_top": 200,
+      "keep_initial_props": 3,
+      "focus_path_top": 5
+    },
+    "selfask": {
+      "_note": "官方 Self-Ask 检索侧是 **SerpAPI Google 搜索**（notebook:248-251），每跳 1 条 snippet，**无 top-k / 无 BM25 / 无标题 / 无本地语料 / 无轮数上限** → 不存在「官方检索参数」可对齐。本项目用 BM25 替换 Google 搜索，`max_hops` / `bm25_k` 属**适配引入**（官方无此参数）。prompt 层已逐字节复刻官方 4-shot。详见 AUDIT_PARAMS.md §3.2。"
+    },
+    "standardrag": {
+      "_note": "本项目自有基线，无官方实现可对齐。**纯稠密**（已关 BM25 与 RRF），top-k = STANDARDRAG_TOP_K（默认 5）。`chunk_dense` 已删除（与它只差 k）。"
+    }
+  },
+  "_chunking_policy": "★ 语料单元（切块尺寸 + 计数尺子）**不在此对齐官方** —— 按本项目口径：**不切块**（一个 context = 一个整段块）+ 本项目 embedder 的 tokenizer。理由：官方 HGR/LightRAG 的 1200/100 是按**大模型的 tiktoken 窗宽**调的；我们换成本项目 embedder 后，同一把尺子量同一段文本 token 数天然更多，照抄 1200 只会让每块越过 embedder 上限。各方法的切块尺寸由各自的 `<METHOD>_CHUNK_TOKENS` 旋钮负责（HGR_CHUNK_TOKENS / LIGHTRAG_CHUNK_TOKENS，**默认 0 = 不切块**），**不再用全局 extract_chunk_tokens 兜底** —— 那会让「为某个方法设的键」静默改掉所有别的方法的语料单元。要回退旧的 400/40 口径就设 extract_chunk_tokens=400 + extract_chunk_overlap=40（现已默认不切块）。"
+}

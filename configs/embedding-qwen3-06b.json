@@ -1,0 +1,59 @@
+{
+  "_readme": "Qwen3-Embedding-0.6B 配方。★ **现在这就是全局默认了**（config.py / default.json 都已切到 Qwen3-0.6B）—— 本文件保留作显式配方与逐项说明，不再需要单独 --config 传入。",
+  "_why": "换 embedding 模型 = 换向量空间：必须同时改「模型名 / 维度 / 截断上限 / 查询前缀」四项，并重建所有向量（新 --graph-version）。少改一项就会静默出错——维度错了向量全是垃圾但不报错，前缀错了召回质量下降也没有任何异常。",
+  "_server": "vLLM 侧（embedding 实例，与 chat 分开起）。★ 本项目**实际在跑的就是这条**：\n  vllm serve /root/rivermind-data/models/Qwen3-Embedding-0.6B \\\n      --task embed --served-model-name Qwen3-Embedding-0.6B --port 8001 \\\n      --gpu-memory-utilization 0.08 \\\n      --max-model-len 4096 --max-num-batched-tokens 8192\n--served-model-name 必须与下面的 embed_model_served 逐字一致。\n\n⚠️⚠️ 这两个上限管的事**完全不同**，混了就出事：\n  --max-model-len 4096           → **单条**序列最多多少 token → 硬约束 embed_max_tokens\n  --max-num-batched-tokens 8192  → **一批**里全部序列的 token 总量 → 硬约束 embed_request_tokens\n  所以 embed_max_tokens 想超过 4096，**只能**先把 --max-model-len 提上去；\n  只动 embed_request_tokens 是没用的（那是另一根轴）。\n\n显存参考：0.6B bf16 权重 ≈ 1.2 GB，--gpu-memory-utilization 0.08 足够；可与 chat 实例共卡。\n\n也可直接指 HF 名（需联网或已缓存）：--model Qwen/Qwen3-Embedding-0.6B",
+
+  "backend": "vllm",
+  "chat_model": "Llama-3.1-8B-Instruct",
+  "vllm_base_url": "http://127.0.0.1:8000/v1",
+  "vllm_embed_base_url": "http://127.0.0.1:8001/v1",
+
+  "_note_hf": "★ HuggingFace 下载镜像 / 离线开关。`hf_endpoint` → `HF_ENDPOINT`（国内直连 huggingface.co 不通，默认走 hf-mirror）。无外网的机器在 **shell 里**再 export `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1`：这两个是「要不要联网」的总闸，不适合写进配置（写进去会让所有机器都无法下载）。⚠️ tokenizer 拿不到时切块会**退化为字符级**（1200 token 实际按 4800 字符切），日志会打 [tokenizer] ⚠️ 告警，manifest 里也会记 tokenizer_failure。修法：把 embed_model 指向含 tokenizer_config.json 的本地目录（推荐，且离线可复现）。",
+  "hf_endpoint": "https://hf-mirror.com",
+
+  "embed_model": "/root/rivermind-data/models/Qwen3-Embedding-0.6B",
+  "embed_model_served": "Qwen3-Embedding-0.6B",
+
+  "_embed_dim_note": "Qwen3-Embedding-0.6B **原生就是 1024 维**（不是像 8B 那样从 4096 做 MRL 截断）→ 与本项目既有 bge-large-1024 的存储/索引规模**完全一致**，磁盘与显存开销不变。\n⚠️ 这个值必须 = 服务端真实输出维度。启动日志会打印「[embed] 服务端维度 N 与配置一致 / 不一致」，也可以跑 python check_embedder.py 单独探。填错不会报错、只会让向量全是垃圾。",
+  "embed_dim": 1024,
+
+  "_embed_max_tokens_note": "**单条**文本喂给 embedding 前的截断上限。约束：必须 ≤ 服务端 `--max-model-len`（本项目 = 4096），**与 embed_request_tokens 是两根不同的轴**。\n⚠️ 设 8192 会 400 —— 4096 是当前服务端单条硬上限。要再提只能先改服务端 `--max-model-len`（模型原生支持 32768）。\n★ 2024 起**不切块**（`extract_chunk_tokens=0`，一个 context = 一个整段 passage），所以这个值不再是「保险丝」而是**真实生效的截断**：triviaqa 的整篇文章会被切到 4096。（旧 400/40 口径下最长单条只有 400 token，这个值确实碰不到；现已不切块，故它是真实生效的截断。）",
+  "embed_max_tokens": 4096,
+
+  "_embed_request_tokens_note": "单请求 token 预算（**一批**的 token 总量），约束：必须 ≤ 服务端 `--max-num-batched-tokens`（本项目 = 8192），且必须 ≥ embed_max_tokens。\n超了 → vLLM **既不报错也不执行，永久静默挂住**（vllm#41969）。\n4096 / 8192 都安全；16384 会挂。",
+  "embed_request_tokens": 4096,
+
+  "_embed_server_batch_tokens_note": "**声明**服务端 `--max-num-batched-tokens` 的值（vLLM API 不上报，只能手填）。\n填了 → server_probe 会拿它和 embed_request_tokens 精确比对，超了直接报警；\n填 0（默认）→ 只在日志里提示『无法核对，请自行确认』，不会误报。\n本项目服务端 = 8192。",
+  "embed_server_batch_tokens": 8192,
+
+  "_embed_query_format_note": "Qwen3-Embedding 查询格式 = `Instruct: {任务}\\nQuery:{文本}`（**Query: 后无空格**），**文档侧不加前缀**。bge 那句英文指令用在这里会掉分。\n模板出处 = **模型自带的** config_sentence_transformers.json 的 \"prompts\": {\"query\": \"Instruct: {task}\\nQuery:\"}（sentence-transformers 把 prompt 与正文直接拼接）。\n⚠️ README 的 get_detailed_instruct() 写的是 `Query: {query}`（**有**空格），与模型随附的 ST 配置矛盾；本项目采用后者。",
+  "embed_query_format": "qwen3",
+  "embed_query_task": "Given a web search query, retrieve relevant passages that answer the query",
+
+  "_embed_tokenizer_note": "embed = Qwen3-Embedding-0.6B 自己的 tokenizer（截断按它的真实 token 数）。",
+  "embed_tokenizer": "embed",
+  "_chunk_tokenizer_note": "切块尺子。**与 embed_tokenizer 保持一致**（都是 embed）= 全项目单一尺子：本项目的预切块、HGR/LightRAG 交给官方库时的 chunk_token_size 计数、BM25 之外的一切 token 计量都用同一把 Qwen3-Embedding-0.6B tokenizer。只有要跟官方 HGR/LightRAG 的 tiktoken 口径对账时才改 tiktoken。",
+  "chunk_tokenizer": "embed",
+
+  "extract_chunk_tokens": 0,
+  "extract_chunk_overlap": 0,
+  "_extract_chunk_note": "★ 全项目语料单元的唯一真源。**0 = 不切块**（一个 context = 一个整段块，标题+正文原样）。改这里，standardrag / s2grag / factalign / selfask / ircot **以及 HGR/LightRAG**（它们的 HGR_CHUNK_TOKENS / LIGHTRAG_CHUNK_TOKENS 默认派生自这两个值）一起变。要回退旧的 400/40 口径就设 400 + 40。invariant（仅非 0 口径下有意义）：HGR/LightRAG 传给官方库的 chunk_token_size 必须与预切块尺寸逐字一致，否则官方会二次切块（双重重叠）。",
+  "_chunk_requires_install_note": "⚠️ 切块尺子需要 `transformers`（requirements.txt 里有 transformers>=4.46）。**没装的话 split_by_tokens 会静默退化到字符级**（1 token ≈ 4 字符 → 实际是 1600 字符/160 重叠），启动日志会打印「切块 tokenizer = 不可用⚠ / 切块可能退化为字符级」。装完确认该行变成可用。",
+
+  "extract_workers": 64,
+  "llm_retry_attempts": 2,
+  "llm_retry_budget_sec": 600,
+  "llm_gate_metrics": 1,
+
+  "_rebuild_note": "换 embedder 后必须重建：\n  1) 图与语料向量：--graph-version 换新号（旧 v 目录留着做对照）；\n  2) RAPTOR 派生节点、factalign 的 ent_vecs/window_vecs 缓存都会按新 v 重算；\n  3) 确认启动日志出现「[embed] 服务端维度 N 与配置一致」（不一致会打印醒目告警）；\n  4) 确认「切块 tokenizer」一行不是「不可用⚠」。",
+
+  "defaults": {
+    "workers": 8,
+    "build_workers": 8,
+    "sample": 500,
+    "graph_version": 3,
+    "retrieval": 1,
+    "trace": true,
+    "trace_prompt": true
+  }
+}

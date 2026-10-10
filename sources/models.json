@@ -1,0 +1,76 @@
+{
+  "_readme": "chat / embedding 模型的权威版本声明。env.json（tools/write_build_meta.py 自动生成）会记录**二进制/包**的精确版本；本文件记录**权重来源与下载方式**。⚠️ 本文件是**人工维护**的说明文档：代码只经 common/paths.py::sources_models_path() 引用它的路径，不会自动读取校验 —— 所以改模型后必须手动同步这里，否则复现的人会照错的声明去下模型。",
+  "_current": "★ 当前实际在跑的组合（与 configs/baselines.json 一致）：chat = Llama-3.1-8B-Instruct，embedding = Qwen3-Embedding-0.6B（1024 维）。",
+  "chat": {
+    "default": {
+      "served_model_name": "Llama-3.1-8B-Instruct",
+      "source": "ModelScope（镜像；服务器直连 HF 不通）",
+      "model_id": "LLM-Research/Meta-Llama-3.1-8B-Instruct",
+      "local_dir": "/root/rivermind-data/models/Llama-3.1-8B-Instruct",
+      "download_cmd": "modelscope download --model LLM-Research/Meta-Llama-3.1-8B-Instruct --local_dir /root/rivermind-data/models/Llama-3.1-8B-Instruct",
+      "serve_cmd": "vllm serve /root/rivermind-data/models/Llama-3.1-8B-Instruct --served-model-name Llama-3.1-8B-Instruct --port 8000 --gpu-memory-utilization 0.85 --max-model-len 32768 --max-num-batched-tokens 8192",
+      "max_model_len": 32768,
+      "license": "Meta Llama 3.1 Community License",
+      "revision_note": "训练语料/权重的具体 revision 由 ModelScope 快照决定；换模型必须开新 --graph-version（图是模型相关的）",
+      "env_vars": {
+        "CHAT_MODEL": "Llama-3.1-8B-Instruct"
+      }
+    },
+    "previous": {
+      "_note": "上一代默认（已不再使用）。保留在此是为了让历史 run 的凭证能对上模型。",
+      "served_model_name": "Qwen2.5-7B-Instruct",
+      "source": "ModelScope",
+      "model_id": "Qwen/Qwen2.5-7B-Instruct",
+      "local_dir": "/root/rivermind-data/models/Qwen2.5-7B-Instruct",
+      "download_cmd": "modelscope download --model Qwen/Qwen2.5-7B-Instruct --local_dir /root/rivermind-data/models/Qwen2.5-7B-Instruct",
+      "serve_cmd": "vllm serve /root/rivermind-data/models/Qwen2.5-7B-Instruct --served-model-name Qwen2.5-7B-Instruct --port 8000 --gpu-memory-utilization 0.85 --max-model-len 32768",
+      "license": "Apache-2.0"
+    }
+  },
+  "embedding": {
+    "default": {
+      "served_model_name": "Qwen3-Embedding-0.6B",
+      "source": "ModelScope（镜像）",
+      "model_id": "Qwen/Qwen3-Embedding-0.6B",
+      "local_dir": "/root/rivermind-data/models/Qwen3-Embedding-0.6B",
+      "download_cmd": "modelscope download --model Qwen/Qwen3-Embedding-0.6B --local_dir /root/rivermind-data/models/Qwen3-Embedding-0.6B",
+      "serve_cmd": "vllm serve /root/rivermind-data/models/Qwen3-Embedding-0.6B --task embed --served-model-name Qwen3-Embedding-0.6B --port 8001 --gpu-memory-utilization 0.08 --max-model-len 4096 --max-num-batched-tokens 8192",
+      "dim": 1024,
+      "max_model_len": 4096,
+      "license": "Apache-2.0",
+      "query_format": "qwen3",
+      "notes": "① 同时是**切块用的 tokenizer**（`CHUNK_TOKENIZER=embed`）：`EMBED_MODEL` 指本地目录 → os.path.isdir 为真 → local_files_only 离线直读。② 服务端 `--max-model-len 4096` **单条**硬上限 → 约束 `EMBED_MAX_TOKENS`(4096)，想再大必须先提服务端。③ `--max-num-batched-tokens 8192` 约束 `EMBED_REQUEST_TOKENS`(4096)。④ 换 embedding 必须开新 --graph-version（向量空间变了）。",
+      "env_vars": {
+        "EMBED_MODEL": "/root/rivermind-data/models/Qwen3-Embedding-0.6B",
+        "EMBED_MODEL_SERVED": "Qwen3-Embedding-0.6B",
+        "EMBED_DIM": 1024,
+        "EMBED_QUERY_FORMAT": "qwen3"
+      }
+    },
+    "alternative_8b": {
+      "_note": "同一族的大模型；维度 4096（或 MRL 截断到 1024/2048）。用它需同步改 EMBED_DIM，并开新 --graph-version。",
+      "served_model_name": "Qwen3-Embedding-8B",
+      "model_id": "Qwen/Qwen3-Embedding-8B",
+      "local_dir": "/root/rivermind-data/models/Qwen3-Embedding-8B",
+      "dim": 4096,
+      "license": "Apache-2.0",
+      "config_file": "configs/embedding-qwen3-8b.json"
+    },
+    "previous": {
+      "_note": "上一代（已不再使用）。它 512 的硬上限是当年「400 token/块、40 重叠」口径的来源；现在不切块，与它无关。",
+      "served_model_name": "bge-large-en-v1.5",
+      "hf_id": "BAAI/bge-large-en-v1.5",
+      "model_id": "AI-ModelScope/bge-large-en-v1.5",
+      "local_dir": "/root/rivermind-data/models/bge-large-en-v1.5",
+      "dim": 1024,
+      "license": "MIT",
+      "query_instruction": "Represent this sentence for searching relevant passages: "
+    }
+  },
+  "tooling": {
+    "vllm": "0.12.0（nightly 以上；Blackwell/sm_120 需 ≥0.10）",
+    "torch": "2.9.0+cu128",
+    "python": "≥3.11",
+    "install": "见 requirements.txt 与 USAGE.md §1"
+  }
+}

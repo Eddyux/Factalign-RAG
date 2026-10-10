@@ -1,0 +1,16 @@
+{
+  "_readme": "输入版本的权威声明（人工维护）。data/raw/{ds}/provenance.json 由 tools/record_source.py 自动补上『本次实际拉到的 revision / 行数 / sha256』。",
+  "dataset": "musique",
+  "hf_id": "bdsaglam/musique",
+  "hf_config": "answerable",
+  "split": "validation",
+  "download_url": "https://huggingface.co/datasets/bdsaglam/musique",
+  "mirror": "https://hf-mirror.com/datasets/bdsaglam/musique",
+  "download_cmd": "python tools/record_source.py --dataset musique --fetch",
+  "license": "CC BY 4.0",
+  "paper": "MuSiQue: Multihop Questions via Single-hop Question Composition (TACL 2022, arXiv:2108.00573)",
+  "hf_revision": null,
+  "version_note": "answerable 子集；revision 由采集脚本写进 provenance.json",
+  "notes": "2-4 跳；官方 PropRAG / HippoRAG2 协议里最难的一档",
+  "used_by": ["standardrag", "factalign", "ircot", "proprag", "selfask"]
+}

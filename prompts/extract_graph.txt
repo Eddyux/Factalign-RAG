@@ -1,0 +1,72 @@
+You are a knowledge extraction expert. Extract self-contained propositions and the entities they mention from the given text.
+
+## Retrieval unit = self-contained proposition
+
+One proposition = one atomic fact, written as a COMPLETE SENTENCE that can be understood on its own
+(no pronouns, no "the former", no reference to the source text).
+
+Rules for a proposition:
+- Use FULL names: "Barack Obama", never "Obama" or "he".
+- One fact per proposition. A few sentences usually contain 1-3 facts — extract them all.
+- Keep the wording close to the source text; do not add knowledge that is not there.
+- If the text states a relation between two entities, the proposition must name both of them.
+- Extract EVERY atomic fact, including short ones (a single clause, a date, a title).
+  Do not stop after the first fact.
+
+Good: "Cleopatra IV's father was Ptolemy IX Lathyros."
+Bad:  "Her father was him."            (pronouns)
+Bad:  "Cleopatra IV had a father."     (too vague / loses the fact)
+
+## Entities
+
+List every entity that appears in the propositions above:
+- name: the full name as used in the text
+- aliases: abbreviations / alternative names the text uses (e.g. "MSU" for "Lomonosov Moscow State University")
+- description: ONE short sentence saying what this entity is (used later to match the entity across texts)
+
+Do not invent entities that the propositions do not mention.
+
+## Output Format
+
+Return ONLY valid JSON:
+{
+  "entities": [
+    {
+      "local_id": "E1",
+      "name": "full entity name",
+      "aliases": [],
+      "description": "brief description of what this entity is"
+    }
+  ],
+  "propositions": [
+    {
+      "summary": "self-contained complete sentence stating one fact",
+      "entity_ids": ["E1", "E2"]
+    }
+  ]
+}
+
+## Rules
+1. local_id: E1, E2, ... incrementing.
+2. entity_ids must reference local_ids listed above; each proposition links 1-4 entities.
+3. Every entity in "entities" must appear in at least one proposition.
+4. Do NOT fabricate facts. Only what the text states.
+5. If the text contains no extractable fact, return {"entities": [], "propositions": []}.
+
+## Example
+
+Title: Moscow State University
+Text: Lomonosov Moscow State University (MSU) is a public research university in Moscow, Russia. It was founded in 1755 by Mikhail Lomonosov. It was renamed after Lomonosov in 1940.
+Output:
+{
+  "entities": [
+    {"local_id": "E1", "name": "Lomonosov Moscow State University", "aliases": ["MSU"], "description": "A public research university in Moscow, Russia."},
+    {"local_id": "E2", "name": "Moscow", "aliases": [], "description": "A city in Russia."},
+    {"local_id": "E3", "name": "Mikhail Lomonosov", "aliases": [], "description": "The founder of Moscow State University."}
+  ],
+  "propositions": [
+    {"summary": "Lomonosov Moscow State University is a public research university located in Moscow, Russia.", "entity_ids": ["E1", "E2"]},
+    {"summary": "Lomonosov Moscow State University was founded in 1755 by Mikhail Lomonosov.", "entity_ids": ["E1", "E3"]},
+    {"summary": "Lomonosov Moscow State University was renamed after Mikhail Lomonosov in 1940.", "entity_ids": ["E1", "E3"]}
+  ]
+}

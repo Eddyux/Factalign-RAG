@@ -1,0 +1,63 @@
+{
+  "_readme": "全局默认参数（configs/README.md 讲优先级与键名规则）。用法：python run.py --config configs/default.json --method proprag --dataset hotpotqa --sample 500",
+  "_note_priority": "CLI/环境变量 > 本文件 > 代码默认值；本文件不覆盖已存在的同名环境变量",
+
+  "backend": "vllm",
+  "chat_model": "Llama-3.1-8B-Instruct",
+  "vllm_base_url": "http://127.0.0.1:8000/v1",
+  "vllm_embed_base_url": "http://127.0.0.1:8001/v1",
+  "_note_hf": "★ HuggingFace 下载镜像 / 离线开关。`hf_endpoint` → `HF_ENDPOINT`（国内直连 huggingface.co 不通，默认走 hf-mirror）。无外网的机器在 **shell 里**再 export `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1`：这两个是「要不要联网」的总闸，不适合写进配置（写进去会让所有机器都无法下载）。⚠️ tokenizer 拿不到时切块会**退化为字符级**（1200 token 实际按 4800 字符切），日志会打 [tokenizer] ⚠️ 告警，manifest 里也会记 tokenizer_failure。修法：把 embed_model 指向含 tokenizer_config.json 的本地目录（推荐，且离线可复现）。",
+  "hf_endpoint": "https://hf-mirror.com",
+
+  "embed_model": "/root/rivermind-data/models/Qwen3-Embedding-0.6B",
+  "embed_model_served": "Qwen3-Embedding-0.6B",
+
+  "_note_embed": "embedding 侧旋钮（换 embedder 只改这一组）。★ 当前全局 embedder = Qwen3-Embedding-0.6B（原生 1024 维）。改 embed_model/embed_dim/embed_max_tokens/embed_tokenizer/embed_query_format 任一项都必须重建所有向量（开新 --graph-version）。要换回 bge：设 embed_model=BAAI/bge-large-en-v1.5、embed_model_served=bge-large-en-v1.5、embed_max_tokens=480、embed_query_format=bge。",
+  "embed_dim": 1024,
+  "embed_max_tokens": 4096,
+  "embed_tokenizer": "embed",
+  "embed_request_tokens": 4096,
+  "embed_query_format": "qwen3",
+  "chunk_tokenizer": "embed",
+
+  "_note_chunking": "★★ 语料单元口径：**extract_chunk_tokens=0 = 不切块**（一个 context = 一个块，标题+正文原样送去抽取/检索/embed）。回退旧口径就设 400 + overlap 40。实测原始 passage：2wiki/hotpotqa/musique/popqa 有 98% 本来短于 400 token（没被切过）→ 此项对它们近似 no-op；⚠️ **triviaqa 的 passage 是整篇维基文章**（中位 3483 词 ≈ 4700 token，569/840 行超 2000 token）→ 已由下面的 triviaqa_chunk_* 单独切成 1200/100 处理。改这一项 = 语料单元变更 → 必须重建 merged 语料与所有图/向量（开新 --graph-version）。",
+  "extract_chunk_tokens": 0,
+  "extract_chunk_overlap": 0,
+  "_note_triviaqa_chunking": "★ **triviaqa 专属切块口径**（`config.dataset_chunking()` 解析）：triviaqa 的 passage 是整篇维基文章，与其余 4 个数据集（一条 passage 就一块）不是同一种检索单元，所以单独切成 1200/100 —— 滑窗步长 = 1200-100 = 1100，末块切到文末即止。例：1250 token → [0..1199] + [1100..1249]；2400 token → [0..1199] + [1100..2299] + [2200..2399]。**其他数据集不受影响**（仍走上面的 extract_chunk_* = 不切块）。环境变量名 = TRIVIAQA_CHUNK_TOKENS / TRIVIAQA_CHUNK_OVERLAP；优先级：环境变量 > 本文件 > config.py 的 DATASET_CHUNK_DEFAULTS。改它 = triviaqa 语料单元变更 → 该数据集的图/向量作废，必须开新 --graph-version 重建。",
+  "triviaqa_chunk_tokens": 1200,
+  "triviaqa_chunk_overlap": 100,
+  "extract_workers": 64,
+
+  "_note_standardrag": "standardrag 的纯稠密 top-k（已关 BM25 与 RRF）。它检索的是**逐题那 10 段**（不是语料级合并语料），所以这个 k 才要独立于 search_top_k_chunks。`chunk_dense` 已删除（纯冗余）。",
+  "standardrag_top_k": 5,
+
+  "_note_bm25_per_method": "各方法的 BM25 打分参数**各自声明**，不落回全局 BM25_K1/BM25_B（1.5/0.75），改全局旋钮不会静默改掉某个基线。IRCOT=1.2/0.75（ES 内建默认；官方 build_index.py 无 similarity 覆盖）；S2GRAG=0.9/0.4（官方 bm25_init_hotpotqa.py:8）；SELFASK=1.5/0.75（官方仓库无 BM25 代码，项目自定，取 rank_bm25 库默认）。★ FACTALIGN 已无 BM25（它现在只走 dense 命题检索；原先的 `rrf/bm25/dense` 单轮召回融合属消融，已移到 test_layer.py），故其 bm25 键已删除。S2GRAG 的旋钮在 methods/s2grag_adapter.py 里，值相同故不重复列出。",
+  "ircot_bm25_k1": 1.2,
+  "ircot_bm25_b": 0.75,
+  "selfask_bm25_k1": 1.5,
+  "selfask_bm25_b": 0.75,
+  "_note_selfask": "selfask 的检索侧口径（§0 第③层 → 对齐官方）：每跳条数=1（官方 google() 只取 answer_box / organic_results[0] 一条，无 num 参数）；跳数上限=10（官方 notebook 无 MAX_HOPS，模型写到 'So the final answer is:' 自己停；原来设 4 会在多跳题上真截断，属对基线有利的不对称）。K=1 时每跳仍是一块≈300 词 vs 官方 snippet≈30-50 词 → 仍是官方 6-10 倍文本量。",
+  "selfask_bm25_k": 1,
+  "selfask_max_hops": 10,
+
+  "_note_evidence": "生成阶段证据预算（**只影响 factalign**，因为只有它的超边同时带 summary 与 window_text）。命题 = 4 轮拆解累积的全部（decomp_top_k 5 × decomp_steps 4 = 20）；窗口 = small-to-big 映射回的原文块，原为 10 → 现 5。0 = 不发该段。只影响生成 prompt，改完重跑逐题即可、不用重建索引。",
+  "factalign_evidence_props": 20,
+  "factalign_evidence_windows": 5,
+
+  "_note_extract_tries": "★ 全项目统一的抽取重试口径：**解析失败最多再抽 2 次、封顶 3 次，仍失败就丢弃该窗口**（该窗口不进图）。同口径：hipporag.openie_tries=3 / hypergraphrag.build_retries=3 / proprag.retry=2 / lightrag（不管）。只对「解析不出结果」重发；解析成功但实体为空不算失败。",
+  "extract_tries": 3,
+
+  "llm_retry_attempts": 2,
+  "llm_retry_budget_sec": 600,
+  "llm_gate_metrics": 1,
+
+  "defaults": {
+    "workers": 8,
+    "build_workers": 8,
+    "sample": 500,
+    "graph_version": 1,
+    "retrieval": 1,
+    "trace": true,
+    "trace_prompt": true
+  }
+}

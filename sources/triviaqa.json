@@ -1,0 +1,16 @@
+{
+  "_readme": "输入版本的权威声明（人工维护）。data/raw/{ds}/provenance.json 由 tools/record_source.py 自动补上『本次实际拉到的 revision / 行数 / sha256』。",
+  "dataset": "triviaqa",
+  "hf_id": "mandarjoshi/trivia_qa",
+  "hf_config": "rc.wikipedia",
+  "split": "validation",
+  "download_url": "https://huggingface.co/datasets/mandarjoshi/trivia_qa",
+  "mirror": "https://hf-mirror.com/datasets/mandarjoshi/trivia_qa",
+  "download_cmd": "python tools/record_source.py --dataset triviaqa --fetch",
+  "license": "Apache-2.0",
+  "paper": "TriviaQA: A Large Scale Distantly Supervised Challenge Dataset for Reading Comprehension (ACL 2017, arXiv:1705.03551)",
+  "hf_revision": null,
+  "version_note": "rc.wikipedia 配置（每题自带 wiki 页面）；revision 由采集脚本写进 provenance.json",
+  "notes": "语料很大（500 题 ≈ 6M token / ≈1.7 万块），建图成本最高；只作开放域对照",
+  "used_by": ["standardrag"]
+}

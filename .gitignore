@@ -1,0 +1,48 @@
+# ─── Python ───────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+
+# ─── IDE / editors ────────────────────────────────────────────────────
+.idea/
+.vscode/
+.ipynb_checkpoints/
+
+# ─── Third-party baselines (cloned separately, not part of this repo) ─
+baselines/
+
+# ─── Corpus artifacts and sampled question sets ───────────────────────
+# The merged corpus vectors alone are ~1.2 GB; samples can be regenerated
+# from the build scripts, so neither belongs in the repository.
+data/merged/
+data/samples/
+data/*.jsonl
+*.npy
+*.jsonl
+
+# ─── Experiment outputs ───────────────────────────────────────────────
+# Per-question results, raw stdout/LLM-call logs, and traces are run
+# artifacts of this machine, not source.
+results/
+logs/
+lr_test_wd/
+*.log
+
+# ─── Analysis (fenxi/) ────────────────────────────────────────────────
+# Local-only post-hoc analysis: probe scripts, figures, stats and vector
+# caches. The published artifact contains the method and the benchmark
+# harness, not this analysis tooling.
+fenxi/
+
+# ─── Secrets / environment ────────────────────────────────────────────
+.env
+
+# ─── Local work notes and scratch files ───────────────────────────────
+/rizhi.md
+/_t2.py
+
+# ─── Documentation ────────────────────────────────────────────────────
+# Every .md is ignored except README.md at any level (e.g. configs/README.md).
+# NOTE: for a file that is ALREADY tracked, this rule has no effect until it
+# is removed from the index with `git rm --cached <file>`.
+*.md
+!README.md

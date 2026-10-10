@@ -1,0 +1,17 @@
+{
+  "_readme": "输入版本的权威声明（人工维护）。data/raw/{ds}/provenance.json 由 tools/record_source.py 自动补上『本次实际拉到的 revision / 行数 / sha256』。",
+  "dataset": "hotpotqa",
+  "hf_id": "hotpotqa/hotpot_qa",
+  "hf_config": "distractor",
+  "split": "validation",
+  "download_url": "https://huggingface.co/datasets/hotpotqa/hotpot_qa",
+  "mirror": "https://hf-mirror.com/datasets/hotpotqa/hotpot_qa",
+  "download_cmd": "python tools/record_source.py --dataset hotpotqa --fetch",
+  "license": "CC BY-SA 4.0",
+  "paper": "HotpotQA: A Dataset for Diverse, Explainable Multi-hop Question Answering (arXiv:1809.09600, EMNLP 2018)",
+  "hf_revision": null,
+  "version_note": "HF 上没有显式版本号；revision 由 tools/record_source.py 采集后写进 provenance.json（null = 用下载当天的 main）",
+  "contexts_per_question": 10,
+  "notes": "distractor 设置：每题 2 金段落 + 8 干扰段落",
+  "used_by": ["standardrag", "factalign", "hipporag", "hypergraphrag", "ircot", "proprag", "selfask"]
+}

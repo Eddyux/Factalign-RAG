@@ -1,0 +1,16 @@
+{
+  "_readme": "输入版本的权威声明（人工维护）。data/raw/{ds}/provenance.json 由 tools/record_source.py 自动补上『本次实际拉到的 revision / 行数 / sha256』。",
+  "dataset": "2wiki",
+  "hf_id": "ohjoonhee/2WikiMultihopQA",
+  "hf_config": null,
+  "split": "validation",
+  "download_url": "https://huggingface.co/datasets/ohjoonhee/2WikiMultihopQA",
+  "mirror": "https://hf-mirror.com/datasets/ohjoonhee/2WikiMultihopQA",
+  "download_cmd": "python tools/record_source.py --dataset 2wiki --fetch",
+  "license": "Apache-2.0",
+  "paper": "Constructing A Multi-hop QA Dataset for Comprehensive Evaluation of Reasoning Steps (COLING 2020, arXiv:2011.01060)",
+  "hf_revision": null,
+  "version_note": "该 HF 镜像的 split/字段可能随上游改动；revision 由采集脚本写进 provenance.json",
+  "notes": "该源只给金段落（无干扰段落）",
+  "used_by": ["standardrag", "factalign", "hipporag", "ircot", "s2grag", "proprag", "selfask"]
+}

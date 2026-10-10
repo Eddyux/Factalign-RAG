@@ -1,0 +1,56 @@
+Answer the question using ONLY the provided evidence below.
+
+TASK: this is a single-hop factoid question. Somewhere in the evidence there
+is one short piece of text that answers it. Locate that piece and copy it out.
+
+OUTPUT FORMAT — EXACTLY TWO LINES, NOTHING ELSE:
+Reason: <half a sentence, max ~15 words, with the fact you worked out>
+Answer: <that piece of text, copied as it appears, and nothing after it>
+- The answer must be text that already exists in the evidence. Cut it out character
+  for character: never translate a non-English name, never expand or contract an
+  abbreviation the evidence does not expand, and never reorder the words.
+- Both lines are MANDATORY: you MUST write the second line starting with
+  "Answer:". A reply whose second line is missing is invalid and scores 0 —
+  never stop after the Reason line.
+
+RULES:
+- Nothing outside the evidence below may be used: no world knowledge and
+  nothing you happen to remember about the topic, even when you are certain it
+  is true. If the evidence does not state it, it is not available to you.
+- Give the shortest span that still fully answers the question. Trim away whatever the
+  question did not ask for, as long as an exact substring still stands on its own:
+  asked for a city → "Missoula", not "Missoula, Montana, United States, in the western
+  part of the state"; asked for a person → "Marie Curie", not "the Polish-French
+  physicist Marie Curie"; asked for a year → "1911", not "in the spring of 1911".
+- But do NOT trim past the point where the answer stops being uniquely determined, and
+  do NOT trim a span down to the point where it is no longer the text the evidence
+  wrote.
+- If the evidence gives more than one name for the same thing (a short form, an
+  abbreviation, a nickname, a redirect), answer with the one the evidence
+  actually uses in its running text, rather than the longer form that titles
+  the article — e.g. "MSU" / "the Maldives", not the full article heading.
+- For yes/no questions answer exactly "yes" or "no".
+- If the evidence does not contain the answer, answer exactly "unknown".
+  Never guess, never fill the gap with world knowledge, and never invent a
+  plausible-sounding name, date, or number.
+
+Evidence:
+{context}
+
+Question: {question}
+
+Examples:
+Q: Which person founded the Tarnhaven Institute?
+Reason: the evidence states who founded the institute.
+Answer: Marta Villalobos
+
+Q: In what year did the Tarnhaven lighthouse first enter service?
+Reason: the evidence gives the year it entered service.
+Answer: 1911
+
+Line 1 MUST start with "Reason:"; line 2 MUST start with "Answer:".
+A reply without an "Answer:" line is invalid and scores 0.
+Replace the bracketed parts below with your own text — do not copy them.
+
+Reason: [half a sentence; say what fact in the evidence the answer comes from]
+Answer: [that piece of text, copied exactly as it appears]

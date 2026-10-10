@@ -1,0 +1,55 @@
+{
+  "_readme": "换成 Qwen3-Embedding-8B 的**完整配方**（= default.json + embedding 四项改动），可直接当唯一的 --config 用：python run.py --config configs/embedding-qwen3-8b.json --method factalign --dataset hotpotqa --sample 500 --graph-version 2",
+  "_why": "换 embedding 模型 = 换向量空间：必须同时改「模型名 / 维度 / 截断上限 / 查询前缀」四项，并重建所有向量（新 --graph-version）。少改一项就会静默出错——维度错了向量全是垃圾但不报错，前缀错了召回质量下降也没有任何异常。",
+  "_server": "vLLM 侧（embedding 实例与 chat 分开起）：\n  vllm serve Qwen/Qwen3-Embedding-8B --task embed \\\n      --port 8001 --served-model-name Qwen3-Embedding-8B \\\n      --max-num-batched-tokens 32768\n--served-model-name 必须与下面的 embed_model_served 逐字一致。",
+
+  "backend": "vllm",
+  "chat_model": "Llama-3.1-8B-Instruct",
+  "vllm_base_url": "http://127.0.0.1:8000/v1",
+  "vllm_embed_base_url": "http://127.0.0.1:8001/v1",
+
+  "_note_hf": "★ HuggingFace 下载镜像 / 离线开关。`hf_endpoint` → `HF_ENDPOINT`（国内直连 huggingface.co 不通，默认走 hf-mirror）。无外网的机器在 **shell 里**再 export `HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1`：这两个是「要不要联网」的总闸，不适合写进配置（写进去会让所有机器都无法下载）。⚠️ tokenizer 拿不到时切块会**退化为字符级**（1200 token 实际按 4800 字符切），日志会打 [tokenizer] ⚠️ 告警，manifest 里也会记 tokenizer_failure。修法：把 embed_model 指向含 tokenizer_config.json 的本地目录（推荐，且离线可复现）。",
+  "hf_endpoint": "https://hf-mirror.com",
+
+  "embed_model": "/root/rivermind-data/models/Qwen3-Embedding-8B",
+  "embed_model_served": "Qwen3-Embedding-8B",
+
+  "_embed_dim_note": "Qwen3-Embedding-8B 原生 4096 维，支持 MRL 截断到 32~4096。这里给 1024：与本项目既有 bge-1024 的存储/索引规模一致（显存与磁盘省 4 倍），MRL-1024 相对满维掉分很小。要跑满维就改成 4096（并确认 vLLM 真的输出 4096 维——启动日志会打印实测维度）。",
+  "embed_dim": 1024,
+
+  "_embed_max_tokens_note": "单条文本喂给 embedding 前的截断上限。bge 的 480 是为了躲它的 512 硬上限；Qwen3-Embedding-8B 上下文 32768，还用 480 会白白截掉长实体描述。这里取官方 README 示例用的 8192（HF 示例里 max_length=8192）；描述类文本实测通常 <500 token，所以 8192 实际上等于不截断，只有超长原文才会被切。想更省可给 2048。",
+  "embed_max_tokens": 8192,
+
+  "_embed_request_tokens_note": "单请求 token 预算，必须 ≤ vLLM 的 --max-num-batched-tokens（超了 vLLM 既不报错也不执行，会永久静默挂住，见 config.py 注释）。注意它必须 ≥ embed_max_tokens，否则单条超预算会被拆成一条一组（能跑但很慢）。引擎起的是 32768 → 这里 16384。引擎没显式设 --max-num-batched-tokens 时改回 4096。",
+  "embed_request_tokens": 16384,
+
+  "_embed_query_format_note": "Qwen3-Embedding 官方查询格式 = `Instruct: {任务}\\nQuery: {文本}`，文档侧不加前缀。bge 那句英文指令用在这里会掉分。",
+  "embed_query_format": "qwen3",
+  "embed_query_task": "Given a web search query, retrieve relevant passages that answer the query",
+
+  "_embed_tokenizer_note": "embed = Qwen3 自己的 tokenizer（截断按 Qwen3 的真实 token 数）。",
+  "embed_tokenizer": "embed",
+  "_chunk_tokenizer_note": "切块尺子。与既有语料口径一致就留 embed（= Qwen3 tokenizer）；想和官方 HGR/LightRAG 的 tiktoken 口径对账时改 tiktoken。",
+  "chunk_tokenizer": "embed",
+
+  "extract_chunk_tokens": 0,
+  "extract_chunk_overlap": 0,
+  "_extract_chunk_note": "**0 = 不切块**（一个 context = 一个整段块），与全局口径一致。回退旧口径设 400 + 40。",
+
+  "extract_workers": 64,
+  "llm_retry_attempts": 2,
+  "llm_retry_budget_sec": 600,
+  "llm_gate_metrics": 1,
+
+  "_rebuild_note": "换 embedder 后必须重建：\n  1) 图与语料向量：--graph-version 换新号（旧 v 目录留着做对照）；\n  2) RAPTOR 派生节点、factalign 的 ent_vecs/window_vecs 缓存都会按新 v 重算；\n  3) 确认启动日志出现「[embed] 服务端维度 N 与配置一致」（不一致会打印醒目告警）。",
+
+  "defaults": {
+    "workers": 8,
+    "build_workers": 8,
+    "sample": 500,
+    "graph_version": 2,
+    "retrieval": 1,
+    "trace": true,
+    "trace_prompt": true
+  }
+}
